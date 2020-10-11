@@ -3,6 +3,7 @@
 import numpy as np
 import time
 import pickle
+import json
 
 import requests
 from pyzbar import pyzbar
@@ -10,6 +11,7 @@ from PIL import Image
 from PIL import ImageFilter
 from PIL import ImageEnhance
 import PIL.ImageOps
+
 
 # SENSOR & ACTUATOR IO FUNCTION
 def weight_isNow():     # Read weight sensor.
@@ -22,7 +24,12 @@ def btn_recvPhone():    # Check if receive phone button is pushed.
 def camera_takePhoto(): # From camera, take photo and return the photo.
     result = None
 
-    return result
+    '''
+    TEMPORARILY PC CAPTURE
+    '''
+    from PIL import ImageGrab
+    
+    return ImageGrab.grab()
 
 def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
 
@@ -34,7 +41,7 @@ def make_doorUnlock():  # Unlock Door
 
 
 # CONSTANTS
-SERVER_URL      = 'https://osam-api.herokuapp.com/'
+SERVER_URL      = 'http://riyenas0925.iptime.org'
 SERVER_MAXTRY   = 3
 TOTP_DELAY      = 10
 
@@ -51,7 +58,6 @@ weight_err      = 0.05
 # UTIL FUNCTIONS
 def server_connect():
     print("Check Server Connection.")
-    result = False
 
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
@@ -68,11 +74,13 @@ def server_connect():
             print("Server Connected!")
             return True
 
-def server_returnPhone(id, TOTP, time, weigth):
+def server_returnPhone(id, TOTP, time):
 
-    success = requests.get(SERVER_URL+'/')
+    now = np.floor(time * 1000)
+    params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
+    response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
 
-    return success
+    return response
             
 def time_isForUse():
     result = False
@@ -157,13 +165,14 @@ while True:
             
             #   Wait for next TOTP, take photo
             time.sleep(TOTP_DELAY)
-            qr_read(qr_decrypt(camera_takePhoto(), 'time-based onbasis'))
-            if qr_read != '':
+            qr = qr_read(qr_decrypt(camera_takePhoto(), 'time-based onbasis'))
+            if qr != '':
                 # If QR Code Detected, request server phone return
-                success = server_returnPhone('id', 'TOTP', 'time,', 'weight')
+                qr = json.loads(qr)
+                success = server_returnPhone(qr['devicdId'], qr['totp'], time.time())
                 if success:
                     # If good return case
-                    # blah blah...
+                    # Request server: phone return log
                     pass
                 else:
                     # If bad return case
