@@ -4,6 +4,7 @@ import numpy as np
 import time
 import pickle
 import json
+import copy
 
 import requests
 from pyzbar import pyzbar
@@ -113,15 +114,52 @@ def time_isForUse():
                 
     return result
 
-def qr_decrypt(photo, type):  # Decrypt photo
+def qr_decrypt(photo, key_vector):  # Decrypt photo
+    new_img = copy.deepcopy(photo)
+    GaussianBlur = ImageFilter.GaussianBlur(1)
+    new_img = new_img.filter(GaussianBlur)
+    new_img = new_img.resize((150,150))
 
-    return photo
+    # Generate o.n.basis with key vector
+    e1 = np.array([1,0,0])
+    e2 = np.array([0,1,0])
+    e3 = np.array([0,0,1])
+
+    u1 = np.array(key_vector)
+    u1 = u1 / np.linalg.norm(u1)
+
+    u2 = e2 - np.dot(e2, u1) / np.dot(u1, u1) * u1
+    u2 = u2 / np.linalg.norm(u2)
+
+    u3 = e3 - np.dot(e3, u1) / np.dot(u1, u1) * u1 - np.dot(e3, u2) / np.dot(u2, u2) * u2
+    u3 = u3 / np.linalg.norm(u3)
+
+    key_basis = np.array([u1, u2, u3]).T
+
+    adjust = 220
+    for i in range(new_img.size[0]):
+        for j in range(new_img.size[1]):
+            pixel = np.array(new_img.getpixel((i, j)))
+            pixel = (pixel - 127) * adjust / 127
+            pixel = np.dot(np.linalg.inv(key_basis), pixel)
+            pixel = pixel + np.array((127, 127, 127))
+            pixel = pixel.astype(int)
+            new_img.putpixel((i,j), (pixel[0], pixel[0], pixel[0]))
+    new_img = PIL.ImageOps.invert(new_img)
+
+    return new_img
 
 def qr_read(photo): # Detect QR Code from photo, then return serial.
     result = ''
-
+    
+    decoded = pyzbar.decode(photo)
+    if len(decoded) > 0:
+        result = decoded[0].data.decode('utf-8')
     return result
 
+test_img = Image.open('test.png')
+print(qr_read(qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862])))
+qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862]).show()
 
 
 # RUN PROGRAM
