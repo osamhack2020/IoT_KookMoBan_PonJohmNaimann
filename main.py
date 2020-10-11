@@ -1,4 +1,5 @@
 # sudo apt-get install libzbar0
+# pip install opencv-python
 
 import numpy as np
 import time
@@ -11,7 +12,10 @@ from pyzbar import pyzbar
 from PIL import Image
 from PIL import ImageFilter
 from PIL import ImageEnhance
+from PIL import ImageGrab
 import PIL.ImageOps
+
+import cv2
 
 
 # SENSOR & ACTUATOR IO FUNCTION
@@ -157,9 +161,148 @@ def qr_read(photo): # Detect QR Code from photo, then return serial.
         result = decoded[0].data.decode('utf-8')
     return result
 
-test_img = Image.open('test.png')
-print(qr_read(qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862])))
-qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862]).show()
+#test_img = Image.open('test.png')
+#print(qr_read(qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862])))
+#qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862]).show()
+
+tempimg = cv2.imread('img/IMG_0289.jpg')
+
+def sort_points(points):
+
+    points = points.astype(np.float32)
+
+
+    new_points = np.zeros((4, 2), dtype = "float32")
+ 
+
+    s = points.sum(axis = 1)
+    min_index = np.argmin(s)
+    new_points[0] = points[min_index]
+    points = np.delete(points, min_index, axis = 0)
+
+
+    s = points.sum(axis = 1)
+    max_index = np.argmax(s)
+    new_points[2] = points[max_index]
+    points = np.delete(points, max_index, axis = 0)
+
+
+    if points[0][1] > points[1][1]:
+        new_points[1] = points[1]
+        new_points[3] = points[0]
+    else:
+        new_points[1] = points[0]
+        new_points[3] = points[1]
+ 
+    return new_points
+
+def transform(img_input, points):
+
+    points = sort_points(points)
+    topLeft, topRight, bottomRight, bottomLeft = points
+ 
+    maxWidth = 300
+    maxHeight = 600
+ 
+    
+    dst = np.array([[0, 0],[maxWidth - 1, 0],
+        [maxWidth - 1, maxHeight - 1],[0, maxHeight - 1]],
+        dtype = "float32")
+ 
+
+    H = cv2.getPerspectiveTransform(points, dst)
+    img_warped = cv2.warpPerspective(img_input, H, (maxWidth, maxHeight))
+ 
+    return img_warped
+
+def phone_autoCut(photo):
+    try:
+        new_img = np.array(photo)
+        new_img = cv2.rotate(new_img, cv2.ROTATE_90_CLOCKWISE)
+
+        # Resize
+        height, width , channel = new_img.shape
+        new_width = 540
+        new_height = int(height * new_width/width)
+        new_img = cv2.resize(new_img, dsize=(new_width, new_height), interpolation=cv2.INTER_AREA)
+        
+        # Grayscale
+        gray_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
+        # cv2.imshow('gray', gray_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        # Negative & Threshold
+        gray_img = cv2.bitwise_not(gray_img)
+        ret, gray_img = cv2.threshold(gray_img, 100, 255, cv2.THRESH_BINARY)
+        # cv2.imshow('gray', gray_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        # Find Contours
+        cont, hier = cv2.findContours(gray_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        max_area = 0
+        max_index = 0
+        for i in range(len(cont)):
+            area = cv2.contourArea(cont[i])
+            if area > max_area:
+                max_area = area
+                max_index = i
+        max_cont = cont[max_index]
+        temp_img = copy.deepcopy(new_img)
+        cv2.drawContours(temp_img, [max_cont], -1, (0,255,0), 3)
+        # cv2.imshow('gray', temp_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        
+        # Dilation
+        mask = np.zeros(gray_img.shape, np.uint8)
+        mask = cv2.drawContours(mask, [max_cont], -1, (255,255,255), 5)
+        kernel = np.ones((20,20), np.uint8)
+        dilated = cv2.dilate(mask, kernel, iterations=1)
+        cont, hier = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        max_area = 0
+        max_index = 0
+        for i in range(len(cont)):
+            area = cv2.contourArea(cont[i])
+            if area > max_area:
+                max_area = area
+                max_index = i
+        max_cont = cont[max_index]
+        # cv2.imshow('gray', dilated)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        # Approx
+        epsilon = 0.1 * cv2.arcLength(max_cont, True)
+        approx = cv2.approxPolyDP(max_cont, epsilon, True)
+
+        # Convex Hull
+        hull = cv2.convexHull(approx)
+        temp_img = copy.deepcopy(new_img)
+        cv2.drawContours(temp_img, [hull], -1, (0,0,255), 3)
+        # cv2.imshow('gray', temp_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
+        # Front View
+        points = []
+        for p in hull:
+            points.append(p[0])
+        points = np.array(points)
+
+        img_phone = transform(new_img, points)
+        print(img_phone.shape)
+        cv2.imshow('gray', img_phone)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        return img_phone
+
+    except:
+        return False
+
+phone_autoCut('img/IMG_0296.jpg')
 
 
 # RUN PROGRAM
@@ -167,8 +310,8 @@ qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862]).show()
 server_isConnected = server_connect()
         
 # Check Self Status (using pickle)
-with open('phone_isFull.pickle', 'wb') as fw:
-    data = pickle.load(fw)
+with open('phone_isFull.pickle', 'rb') as fr:
+    data = pickle.load(fr)
 if data == 'isFull':
     phone_isFull == True
 else: 
@@ -196,7 +339,7 @@ while True:
             
             #   Then Filter Noise Case
             time.sleep(0.5)
-            if abs(weight_saved - weight_isNow()) < (weight_saved * weight_err):
+            if abs(weight_saved - weight_isNow()) <= (weight_saved * weight_err):
                 break
             else:
                 weight_saved = weight_isNow()
