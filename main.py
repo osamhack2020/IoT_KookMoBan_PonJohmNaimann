@@ -196,13 +196,13 @@ def sort_points(points):
  
     return new_points
 
-def transform(img_input, points):
+def transform(img_input, points, size):
 
     points = sort_points(points)
     topLeft, topRight, bottomRight, bottomLeft = points
  
-    maxWidth = 300
-    maxHeight = 600
+    maxWidth = size[0]
+    maxHeight = size[1]
  
     
     dst = np.array([[0, 0],[maxWidth - 1, 0],
@@ -216,15 +216,21 @@ def transform(img_input, points):
     return img_warped
 
 def phone_autoCut(photo):
+    # Make photo into numpy.ndarray
+    if type(photo) == str:
+            new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
+        elif type(photo) == Image.Image:
+            new_img = np.array(photo)
+        elif type(photo) == np.ndarray:
+            new_img = copy.deepcopy(photo)
+    
     try:
-        new_img = np.array(photo)
-        new_img = cv2.rotate(new_img, cv2.ROTATE_90_CLOCKWISE)
-
-        # Resize
+        # Resize & Rotate
         height, width , channel = new_img.shape
         new_width = 540
         new_height = int(height * new_width/width)
         new_img = cv2.resize(new_img, dsize=(new_width, new_height), interpolation=cv2.INTER_AREA)
+        #new_img = cv2.rotate(new_img, cv2.ROTATE_90_CLOCKWISE)
         
         # Grayscale
         gray_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
@@ -258,7 +264,7 @@ def phone_autoCut(photo):
         # Dilation
         mask = np.zeros(gray_img.shape, np.uint8)
         mask = cv2.drawContours(mask, [max_cont], -1, (255,255,255), 5)
-        kernel = np.ones((20,20), np.uint8)
+        kernel = np.ones((30,30), np.uint8)
         dilated = cv2.dilate(mask, kernel, iterations=1)
         cont, hier = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         max_area = 0
@@ -281,9 +287,16 @@ def phone_autoCut(photo):
         hull = cv2.convexHull(approx)
         temp_img = copy.deepcopy(new_img)
         cv2.drawContours(temp_img, [hull], -1, (0,0,255), 3)
-        # cv2.imshow('gray', temp_img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow('gray', temp_img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        # Hull Size Calc
+        lines = []
+        for i in range(len(hull)):
+            lines.append(np.linalg.norm(hull[i][0] - hull[(i+1)%len(hull)][0]))
+        lines.sort()
+        print(lines)
 
         # Front View
         points = []
@@ -291,30 +304,34 @@ def phone_autoCut(photo):
             points.append(p[0])
         points = np.array(points)
 
-        img_phone = transform(new_img, points)
-        print(img_phone.shape)
+        img_phone = transform(new_img, points, (int(lines[1]), int(lines[3]*1.2)))
         cv2.imshow('gray', img_phone)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
         return img_phone
 
-    except:
-        return False
+    except Exception as e:
+        print('Failed to Autocut...')
+        print(e)
+        return new_img
 
-phone_autoCut('img/IMG_0296.jpg')
+phone_autoCut('img/IMG_0301.jpg')
 
 
 # RUN PROGRAM
 # Check Server Connection
 server_isConnected = server_connect()
+print()
         
 # Check Self Status (using pickle)
 with open('phone_isFull.pickle', 'rb') as fr:
     data = pickle.load(fr)
 if data == 'isFull':
+    print('Tray Check: Sth Already Inside.\n')
     phone_isFull == True
-else: 
+else:
+    print('Tray Check: Nothing Inside.\n')
     phone_isFull == False
 
 # Main Loop
@@ -328,20 +345,23 @@ while True:
 
     else:
         # Check If Weight Sensor Has Changed
-        if abs(weight_saved - weight_isNow()) < weight_saved * weight_err:   
+        if abs(weight_saved - weight_isNow()) <= weight_saved * weight_err:   
             # Nothing Happend
             adj = 0.95
             weight_saved = weight_saved * adj + weight_isNow() * (1-adj)
             pass
         else:
             # Something Entered
+            print('Weight Sensor Activated!')
             weight_temp = weight_isNow()
             
             #   Then Filter Noise Case
             time.sleep(0.5)
             if abs(weight_saved - weight_isNow()) <= (weight_saved * weight_err):
-                break
+                print('-> was an noise case.')
+                continue
             else:
+                print('-> sth entered in the tray.')
                 weight_saved = weight_isNow()
             
             #   Wait for next TOTP, take photo
