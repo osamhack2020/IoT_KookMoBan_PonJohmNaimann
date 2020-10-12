@@ -1,4 +1,6 @@
 import pickle
 
-with open('phone_isFull.pickle', 'wb') as fw:
-    pickle.dump('isEmpty', fw)
+data = {'phone_isFull' : False, 'weight' : True}
+
+with open('save.pickle', 'wb') as fw:
+    pickle.dump(data, fw)
