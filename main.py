@@ -6,6 +6,7 @@ import time
 import pickle
 import json
 import copy
+import base64
 
 import requests
 from pyzbar import pyzbar
@@ -218,11 +219,11 @@ def transform(img_input, points, size):
 def phone_autoCut(photo):
     # Make photo into numpy.ndarray
     if type(photo) == str:
-            new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
-        elif type(photo) == Image.Image:
-            new_img = np.array(photo)
-        elif type(photo) == np.ndarray:
-            new_img = copy.deepcopy(photo)
+        new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
+    elif type(photo) == Image.Image:
+        new_img = np.array(photo)
+    elif type(photo) == np.ndarray:
+        new_img = copy.deepcopy(photo)
     
     try:
         # Resize & Rotate
@@ -316,7 +317,12 @@ def phone_autoCut(photo):
         print(e)
         return new_img
 
-phone_autoCut('img/IMG_0301.jpg')
+# temp_img = phone_autoCut('img/IMG_0301.jpg')
+
+def img_to_base64(img):
+    return base64.b64encode(img)
+
+# print(img_to_base64(temp_img))
 
 
 # RUN PROGRAM
