@@ -331,14 +331,15 @@ server_isConnected = server_connect()
 print()
         
 # Check Self Status (using pickle)
-with open('phone_isFull.pickle', 'rb') as fr:
+with open('save.pickle', 'rb') as fr:
     data = pickle.load(fr)
-if data == 'isFull':
+if data['phone_isFull'] == True:
     print('Tray Check: Sth Already Inside.\n')
-    phone_isFull == True
+    phone_isFull = True
+    weight_saved = data['weight']
 else:
     print('Tray Check: Nothing Inside.\n')
-    phone_isFull == False
+    phone_isFull = False
 
 # Main Loop
 
