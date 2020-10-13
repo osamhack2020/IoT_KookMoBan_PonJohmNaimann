@@ -30,7 +30,6 @@ def btn_recvPhone():    # Check if receive phone button is pushed.
 def camera_takePhoto(): # From camera, take photo and return the photo.
     capture = cv2.VideoCapture(0)
     ret, frame = capture.read()
-    
     return frame
 
 def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
@@ -75,26 +74,6 @@ def server_connect():
         else:
             print("Server Connected!")
             return True
-
-def server_returnValid(id, TOTP, time):
-    now = np.floor(time * 1000)
-    params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
-    response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
-
-    return response
-
-def server_returnLog(id, returnTime, weight):
-    cv2.imwrite('cam.jpeg', camera_takePhoto())
-    with open('cam.jpeg', 'rb') as img:
-        photo_str = 'data:image/jpeg;base64,'+str(base64.b64encode(img.read()).decode('utf-8'))
-    # params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
-    params = {'photo': photo_str}
-    
-    result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
-    return result
-
-print(server_returnLog(1, time.time(), 100))
-    
 
 def time_isForUse():
     result = False
@@ -291,9 +270,9 @@ def phone_autoCut(photo):
         hull = cv2.convexHull(approx)
         temp_img = copy.deepcopy(new_img)
         cv2.drawContours(temp_img, [hull], -1, (0,0,255), 3)
-        cv2.imshow('gray', temp_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow('gray', temp_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         # Hull Size Calc
         lines = []
@@ -309,9 +288,9 @@ def phone_autoCut(photo):
         points = np.array(points)
 
         img_phone = transform(new_img, points, (int(lines[1]), int(lines[3]*1.2)))
-        cv2.imshow('gray', img_phone)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow('gray', img_phone)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         return img_phone
 
@@ -326,6 +305,25 @@ def img_to_base64(img):
     return base64.b64encode(img)
 
 # print(img_to_base64(temp_img))
+
+def server_returnValid(id, TOTP, time):
+    now = np.floor(time * 1000)
+    params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
+    response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
+
+    return response
+
+def server_returnLog(id, returnTime, weight):
+    cv2.imwrite('cam.jpeg', phone_autoCut(camera_takePhoto()))
+    with open('cam.jpeg', 'rb') as img:
+        photo_str = 'data:image/jpeg;base64,'+str(base64.b64encode(img.read()).decode('utf-8'))
+    # params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
+    params = {'photo': photo_str}
+    
+    result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
+    return result
+
+print(server_returnLog(1, time.time(), 100))
 
 
 # RUN PROGRAM
