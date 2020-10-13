@@ -42,7 +42,7 @@ def make_doorUnlock():  # Unlock Door
 
 
 # CONSTANTS
-SERVER_URL      = 'http://riyenas0925.iptime.org'
+SERVER_URL      = 'https://osam.riyenas.dev'
 SERVER_MAXTRY   = 3
 TOTP_DELAY      = 10
 
@@ -279,7 +279,7 @@ def phone_autoCut(photo):
         for i in range(len(hull)):
             lines.append(np.linalg.norm(hull[i][0] - hull[(i+1)%len(hull)][0]))
         lines.sort()
-        print(lines)
+        # print(lines)
 
         # Front View
         points = []
@@ -317,8 +317,8 @@ def server_returnLog(id, returnTime, weight):
     cv2.imwrite('cam.jpeg', phone_autoCut(camera_takePhoto()))
     with open('cam.jpeg', 'rb') as img:
         photo_str = 'data:image/jpeg;base64,'+str(base64.b64encode(img.read()).decode('utf-8'))
-    # params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
-    params = {'photo': photo_str}
+    params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
+    # params = {'photo': photo_str}
     
     result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
     return result
