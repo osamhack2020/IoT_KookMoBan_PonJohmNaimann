@@ -28,14 +28,10 @@ def btn_recvPhone():    # Check if receive phone button is pushed.
     return False
 
 def camera_takePhoto(): # From camera, take photo and return the photo.
-    result = None
-
-    '''
-    TEMPORARILY PC CAPTURE
-    '''
-    from PIL import ImageGrab
+    capture = cv2.VideoCapture(0)
+    ret, frame = capture.read()
     
-    return ImageGrab.grab()
+    return frame
 
 def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
 
@@ -80,14 +76,26 @@ def server_connect():
             print("Server Connected!")
             return True
 
-def server_returnPhone(id, TOTP, time):
-
+def server_returnValid(id, TOTP, time):
     now = np.floor(time * 1000)
     params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
     response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
 
     return response
-            
+
+def server_returnLog(id, returnTime, weight):
+    cv2.imwrite('cam.jpeg', camera_takePhoto())
+    with open('cam.jpeg', 'rb') as img:
+        photo_str = 'data:image/jpeg;base64,'+str(base64.b64encode(img.read()).decode('utf-8'))
+    # params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
+    params = {'photo': photo_str}
+    
+    result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
+    return result
+
+print(server_returnLog(1, time.time(), 100))
+    
+
 def time_isForUse():
     result = False
     # Online Mode
@@ -171,22 +179,17 @@ tempimg = cv2.imread('img/IMG_0289.jpg')
 def sort_points(points):
 
     points = points.astype(np.float32)
-
-
     new_points = np.zeros((4, 2), dtype = "float32")
  
-
     s = points.sum(axis = 1)
     min_index = np.argmin(s)
     new_points[0] = points[min_index]
     points = np.delete(points, min_index, axis = 0)
 
-
     s = points.sum(axis = 1)
     max_index = np.argmax(s)
     new_points[2] = points[max_index]
     points = np.delete(points, max_index, axis = 0)
-
 
     if points[0][1] > points[1][1]:
         new_points[1] = points[1]
@@ -342,7 +345,7 @@ else:
     phone_isFull = False
 
 # Main Loop
-
+print('Start Main Loop.')
 while True:
     if phone_isFull:    # ANTI-THEFT
         # Check If GetPhone Button is Pushed
@@ -372,18 +375,25 @@ while True:
                 weight_saved = weight_isNow()
             
             #   Wait for next TOTP, take photo
+            return_time = time.time()
             time.sleep(TOTP_DELAY)
             qr = qr_read(qr_decrypt(camera_takePhoto(), 'time-based onbasis'))
             if qr != '':
                 # If QR Code Detected, request server phone return
                 qr = json.loads(qr)
-                success = server_returnPhone(qr['devicdId'], qr['totp'], time.time())
+                success = server_returnValid(qr['deviceId'], qr['totp'], return_time)
                 if success:
                     # If good return case
                     # Request server: phone return log
+                    server_returnLog(qr['deviceId'], return_time, weight_isNow())
+                    # Change Status
+                    # Save Status
+                    # Notice User Successful Phone Return
+
                     pass
                 else:
                     # If bad return case
-                    # blah blah...
+                    # Alert User
+                    # Wait Till Phone is Out
                     pass
 
