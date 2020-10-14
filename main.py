@@ -19,35 +19,18 @@ import PIL.ImageOps
 import cv2
 
 
-# SENSOR & ACTUATOR IO FUNCTION
-def weight_isNow():     # Read weight sensor.
+##======================= CONSTANTS =======================##
 
-    return 0
-
-def btn_recvPhone():    # Check if receive phone button is pushed.
-    return False
-
-def camera_takePhoto(): # From camera, take photo and return the photo.
-    capture = cv2.VideoCapture(0)
-    ret, frame = capture.read()
-    return frame
-
-def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
-
-    return True
-
-def make_doorUnlock():  # Unlock Door
-
-    return True
-
-
-# CONSTANTS
 SERVER_URL      = 'https://osam.riyenas.dev'
 SERVER_MAXTRY   = 3
 TOTP_DELAY      = 10
 
 
-# PUBLIC VARIABLES
+
+##==================== PUBLIC VARIABLES ====================##
+
+server_isConnected = False
+
 phone_isFull    = False
 
 door_isOpen     = True
@@ -56,7 +39,67 @@ weight_saved    = 0
 weight_err      = 0.05
 
 
-# UTIL FUNCTIONS
+
+##============== SENSOR & ACTUATOR IO FUNCTION ==============##
+
+def weight_isNow():     # Read weight sensor.
+    '''read loadcell input'''
+    return 0
+
+def btn_recvPhone():    # Check if receive phone button is pushed.
+    '''read button input'''
+    return False
+
+def camera_takePhoto(): # From camera, take photo and return the photo.
+    capture = cv2.VideoCapture(0)
+    ret, frame = capture.read()
+    return frame
+
+
+door_openSpeed = 0.01
+def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
+    print('Lock Door...')
+
+    # Close Door
+    for i in range(90):
+        if abs(weight_isNow()-weight_saved) <= (weight_saved * weight_err):
+            # Check Weight
+            angle = (90-i)
+            '''write angle'''
+            time.sleep(door_openSpeed)
+        else:
+            # If Sth Strange
+            angle = 90
+            '''write angle'''
+            print('    Sth Strange!')
+            print('Failed to Lock Door.\n')
+            return False
+    
+    # Lock Locker
+    '''Lock Locker'''
+    
+    print('Successfully Locked Door.\n')
+    return True
+
+def make_doorUnlock():  # Unlock Door
+    print('Open Door...')
+
+    # Unlock Locker
+    '''Unlock Locker'''
+
+    # Open Door
+    for i in range(90):
+        angle = i
+        '''write angle'''
+        time.sleep(door_openSpeed)
+    
+    print('Successfully Opened Door.\n')
+    return True
+
+
+
+##========================= UTIL FUNCTIONS =========================##
+
 def server_connect():
     print("Check Server Connection.")
 
@@ -153,7 +196,7 @@ def qr_read(photo): # Detect QR Code from photo, then return serial.
 #print(qr_read(qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862])))
 #qr_decrypt(test_img, [-0.787984  ,  0.55249453,  0.27171862]).show()
 
-tempimg = cv2.imread('img/IMG_0289.jpg')
+#tempimg = cv2.imread('img/IMG_0289.jpg')
 
 def sort_points(points):
 
@@ -298,12 +341,10 @@ def phone_autoCut(photo):
         print('Failed to Autocut...')
         print(e)
         return new_img
-
 # temp_img = phone_autoCut('img/IMG_0301.jpg')
 
 def img_to_base64(img):
     return base64.b64encode(img)
-
 # print(img_to_base64(temp_img))
 
 def server_returnValid(id, TOTP, time):
@@ -326,12 +367,18 @@ def server_returnLog(id, returnTime, weight):
 print(server_returnLog(1, time.time(), 100))
 
 
-# RUN PROGRAM
+
+##========================= RUN PROGRAM =========================##
+
+
 # Check Server Connection
+
 server_isConnected = server_connect()
 print()
-        
+
+
 # Check Self Status (using pickle)
+
 with open('save.pickle', 'rb') as fr:
     data = pickle.load(fr)
 if data['phone_isFull'] == True:
@@ -342,7 +389,9 @@ else:
     print('Tray Check: Nothing Inside.\n')
     phone_isFull = False
 
+
 # Main Loop
+
 print('Start Main Loop.')
 while True:
     if phone_isFull:    # ANTI-THEFT
@@ -355,8 +404,6 @@ while True:
         # Check If Weight Sensor Has Changed
         if abs(weight_saved - weight_isNow()) <= weight_saved * weight_err:   
             # Nothing Happend
-            adj = 0.95
-            weight_saved = weight_saved * adj + weight_isNow() * (1-adj)
             pass
         else:
             # Something Entered
@@ -366,32 +413,82 @@ while True:
             #   Then Filter Noise Case
             time.sleep(0.5)
             if abs(weight_saved - weight_isNow()) <= (weight_saved * weight_err):
-                print('-> was an noise case.')
+                print(' -> was an noise case.')
                 continue
             else:
-                print('-> sth entered in the tray.')
+                print(' -> sth entered in the tray.')
                 weight_saved = weight_isNow()
             
             #   Wait for next TOTP, take photo
+            print('    Reading QR Code...')
             return_time = time.time()
             time.sleep(TOTP_DELAY)
             qr = qr_read(qr_decrypt(camera_takePhoto(), 'time-based onbasis'))
+
             if qr != '':
                 # If QR Code Detected, request server phone return
                 qr = json.loads(qr)
                 success = server_returnValid(qr['deviceId'], qr['totp'], return_time)
                 if success:
                     # If good return case
+                    print('    Valid QR Code!')
+
+                    # Lock Door
+                    door_maxtry = 3
+                    door_locked = False
+                    for i in range(door_maxtry+1):
+                        if make_doorLock():
+                            door_locked = True
+                            print('    Door Locked.')
+                            break
+                        else:
+                            print('    Door Cannot be Locked!')
+                    if not door_locked:
+                        print('Return Canceled: Door Problem!')
+                        continue
+
+                    # Measure weight properly
+                    mean_weight = weight_isNow()
+                    for i in range(10):
+                        mean_weight = mean_weight * i/(1+i) + weight_isNow() /(1+i)
+                        time.sleep(0.05)
+                    print('    Weight: %f gram', mean_weight)
+
+                    # Change Status
+                    phone_isFull = True
+                    weight_saved = mean_weight
+                    
+                    # Save Status
+                    temp_save = {'phone_isFull': True, 'weight': weight_saved}
+                    with open('save.pickle', 'wb') as fw:
+                        pickle.dumps(temp_save, fw)
+                    print('    Status Saved.')
+
                     # Request server: phone return log
                     server_returnLog(qr['deviceId'], return_time, weight_isNow())
-                    # Change Status
-                    # Save Status
-                    # Notice User Successful Phone Return
+                    print('    Sent Server Return Log.')
 
-                    pass
+                    # Notice User Successful Phone Return
+                    print('Return Finished Successfully.')
+
+                    time.sleep(3)
+
                 else:
                     # If bad return case
+                    
                     # Alert User
+                    print('Return Canceled: Invalid QR Code.')
+                    
                     # Wait Till Phone is Out
-                    pass
+                    while weight_isNow() <= 5:
+                        time.sleep(1)
+                    time.sleep(10)
 
+            else:
+                # No QR Code
+                print('Return Failed: QR Reading Failed.')
+                
+                # Wait Till Phone is Out
+                while weight_isNow() <= 5:
+                    time.sleep(1)
+                time.sleep(10)
