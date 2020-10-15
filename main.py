@@ -121,8 +121,9 @@ def time_isForUse():
     result = False
     # Online Mode
     if server_isConnected:
-        canUse = requests.get(SERVER_URL+'/')
-        if canUse == 'True':
+        params = {'adminId': 1, 'millis': int(time.time())}
+        canUse = requests.get(SERVER_URL+'/api/soldier/return/time/valid', params=params)
+        if canUse.text == 'true':
             result = True
     # Offline Mode
     else:
@@ -242,7 +243,6 @@ def transform(img_input, points, size):
 
 def phone_autoCut(photo):
     # Make photo into numpy.ndarray
-    print(type(photo))
     if type(photo) == str:
         new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
     elif type(photo) == Image.Image:
@@ -394,6 +394,7 @@ else:
 
 print('Start Main Loop.')
 while True:
+
     if phone_isFull:    # ANTI-THEFT
         # Check If GetPhone Button is Pushed
         if btn_recvPhone() and time_isForUse():
