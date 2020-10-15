@@ -13,7 +13,6 @@ from pyzbar import pyzbar
 from PIL import Image
 from PIL import ImageFilter
 from PIL import ImageEnhance
-from PIL import ImageGrab
 import PIL.ImageOps
 
 import cv2
@@ -243,6 +242,7 @@ def transform(img_input, points, size):
 
 def phone_autoCut(photo):
     # Make photo into numpy.ndarray
+    print(type(photo))
     if type(photo) == str:
         new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
     elif type(photo) == Image.Image:
