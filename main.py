@@ -37,6 +37,7 @@ door_isOpen     = True
 weight_saved    = 0
 weight_err      = 0.05
 
+admin_id        = 0
 
 
 ##============== SENSOR & ACTUATOR IO FUNCTION ==============##
@@ -121,7 +122,7 @@ def time_isForUse():
     result = False
     # Online Mode
     if server_isConnected:
-        params = {'adminId': 1, 'millis': int(time.time())}
+        params = {'adminId': admin_id, 'millis': int(time.time())}
         canUse = requests.get(SERVER_URL+'/api/soldier/return/time/valid', params=params)
         if canUse.text == 'true':
             result = True
@@ -385,6 +386,7 @@ if data['phone_isFull'] == True:
     print('Tray Check: Sth Already Inside.\n')
     phone_isFull = True
     weight_saved = data['weight']
+    admin_id = data['adminId']
 else:
     print('Tray Check: Nothing Inside.\n')
     phone_isFull = False
@@ -458,9 +460,10 @@ while True:
                     # Change Status
                     phone_isFull = True
                     weight_saved = mean_weight
+                    admin_id = qr['adminId']
                     
                     # Save Status
-                    temp_save = {'phone_isFull': True, 'weight': weight_saved}
+                    temp_save = {'phone_isFull': True, 'weight': weight_saved, 'adminId': admin_id}
                     with open('save.pickle', 'wb') as fw:
                         pickle.dumps(temp_save, fw)
                     print('    Status Saved.')
