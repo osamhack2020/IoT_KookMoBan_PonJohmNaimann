@@ -399,12 +399,20 @@ def phone_autoCut(photo):
 
         return img_phone
 
+<<<<<<< Updated upstream
     #except Exception as e:
     #    print('Failed to Autocut...')
     #    print(e)
     #    return new_img
 temp_img = phone_autoCut('img/IMG_0301.jpg')
 cv2.imwrite('autocut.jpg', temp_img)
+=======
+    except Exception as e:
+        print('Failed to Autocut...')
+        print(e)
+        return new_img
+temp_img = phone_autoCut('img/IMG_0301.jpg')
+>>>>>>> Stashed changes
 
 def img_to_base64(img):
     return base64.b64encode(img)
