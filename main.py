@@ -116,20 +116,18 @@ def make_doorLock():    # Check if door is closed, and lock. If door is not clos
 
     # Close Door
     for i in range(90):
-        if abs(weight_isNow()-weight_saved) <= (weight_saved * weight_err):
-            # Check Weight
-            angle = (90-i)
-            '''write angle'''
-            setServoPos(servo0, angle)
-            time.sleep(door_openSpeed)
-        else:
-            # If Sth Strange
-            angle = 90
-            '''write angle'''
-            setServoPos(servo0, angle)
-            print('    Sth Strange!')
-            print('Failed to Lock Door.\n')
-            return False
+        angle = (90-i)
+        '''write angle'''
+        setServoPos(servo0, angle)
+        time.sleep(door_openSpeed)
+    if weight_isNow() <= (3+weight_saved*weight_err):
+        # If Sth Strange
+        angle = 90
+        '''write angle'''
+        setServoPos(servo0, angle)
+        print('Sth Strange!')
+        print('Failed to Lock Door.\n')
+        return False
     
     # Lock Locker
     '''Lock Locker'''
@@ -503,6 +501,21 @@ while True:
             else:
                 print(' -> sth entered in the tray.')
             
+            #   Lock Door
+            door_maxtry = 3
+            door_locked = False
+            for i in range(door_maxtry+1):
+                if make_doorLock():
+                    door_locked = True
+                    print('    Door Locked.')
+                    break
+                else:
+                    print('    Door Cannot be Locked!')
+            if not door_locked:
+                print('Return Canceled: Door Problem!')
+                make_doorUnlock()
+                continue
+            
             #   Wait for next TOTP, take photo
             print('    Reading QR Code...')
             return_time = time.time()
@@ -519,20 +532,6 @@ while True:
                 if success:
                     # If good return case
                     print('    Valid QR Code!')
-
-                    # Lock Door
-                    door_maxtry = 3
-                    door_locked = False
-                    for i in range(door_maxtry+1):
-                        if make_doorLock():
-                            door_locked = True
-                            print('    Door Locked.')
-                            break
-                        else:
-                            print('    Door Cannot be Locked!')
-                    if not door_locked:
-                        print('Return Canceled: Door Problem!')
-                        continue
 
                     # Measure weight properly
                     mean_weight = weight_isNow()
@@ -567,6 +566,9 @@ while True:
                     # Alert User
                     print('Return Canceled: Invalid QR Code.')
                     
+                    # Open Door
+                    make_doorUnlock()
+                    
                     # Wait Till Phone is Out
                     while weight_isNow() > 5:
                         time.sleep(1)
@@ -575,6 +577,9 @@ while True:
             else:
                 # No QR Code
                 print('Return Failed: QR Reading Failed.')
+                
+                # Open Door
+                make_doorUnlock()
                 
                 # Wait Till Phone is Out
                 while weight_isNow() > 5:
