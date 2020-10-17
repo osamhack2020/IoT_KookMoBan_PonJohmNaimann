@@ -3,6 +3,7 @@
 
 import RPi.GPIO as gp
 import picamera
+import serial
 
 import numpy as np
 import time
@@ -56,6 +57,8 @@ servo1 = gp.PWM(PIN_SERVO1, 50)
 servo0.start(0)
 servo1.start(0)
 
+ser = serial.Serial('/dev/ttyUSB0', 9600)
+
 
 ##==================== PUBLIC VARIABLES ====================##
 
@@ -75,8 +78,18 @@ admin_id        = 0
 
 def weight_isNow():     # Read weight sensor.
     '''read loadcell input'''
-    # temp
-    return gp.input(PIN_WEIGHT) * 120
+    ser.write('weight'.encode('ascii'))
+    buffer = ''
+    while True:
+        temp = ser.read().decode('ascii')
+        if temp == '\n':
+            break
+        else:
+            buffer += temp
+    weight = 1023 - int(buffer)
+    if weight < 0:
+        weight = 0
+    return weight
 
 def btn_recvPhone():    # Check if receive phone button is pushed.
     '''read button input'''
@@ -152,7 +165,7 @@ def server_connect():
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
         resp = requests.get(SERVER_URL)
-        if resp.status_code != 201:
+        if resp.status_code != 200:
             print("    Server doesn't respond... (", nowtry, "/", SERVER_MAXTRY, ")")
             if nowtry == SERVER_MAXTRY:
                 print("Failed to Connect Server. Operating as a Offline Mode.")
@@ -473,17 +486,18 @@ while True:
 
     else:
         # Check If Weight Sensor Has Changed
-        if abs(weight_saved - weight_isNow()) <= weight_saved * weight_err:   
+        if abs(weight_saved - weight_isNow()) <= (3+weight_saved * weight_err):
             # Nothing Happend
             pass
         else:
             # Something Entered
             print('Weight Sensor Activated!')
             weight_temp = weight_isNow()
+            print('weight: ', weight_temp)
             
             #   Then Filter Noise Case
             time.sleep(0.5)
-            if abs(weight_saved - weight_isNow()) <= (weight_saved * weight_err):
+            if abs(weight_saved - weight_isNow()) <= (3+weight_saved * weight_err):
                 print(' -> was an noise case.')
                 continue
             else:
@@ -554,7 +568,7 @@ while True:
                     print('Return Canceled: Invalid QR Code.')
                     
                     # Wait Till Phone is Out
-                    while weight_isNow() <= 5:
+                    while weight_isNow() > 5:
                         time.sleep(1)
                     time.sleep(10)
 
@@ -563,6 +577,6 @@ while True:
                 print('Return Failed: QR Reading Failed.')
                 
                 # Wait Till Phone is Out
-                while weight_isNow() <= 5:
+                while weight_isNow() > 5:
                     time.sleep(1)
                 time.sleep(10)
