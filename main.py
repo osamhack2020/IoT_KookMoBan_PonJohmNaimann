@@ -1,6 +1,9 @@
 # sudo apt-get install libzbar0
 # pip install opencv-python
 
+import RPi.GPIO as gp
+import picamera
+
 import numpy as np
 import time
 import pickle
@@ -24,6 +27,34 @@ SERVER_URL      = 'https://osam.riyenas.dev'
 SERVER_MAXTRY   = 3
 TOTP_DELAY      = 10
 
+PIN_RECVPHONE	= 36
+PIN_DOORCLOSE0	= 38
+PIN_DOORCLOSE1	= 40
+PIN_SERVO0 		= 11
+PIN_SERVO1		= 13
+PIN_LEDLIGHT	= 16
+
+SERVO_MIN_DUTY	= 3
+SERVO_MAX_DUTY	= 12
+
+#TEMPORARY
+PIN_WEIGHT		= 37
+
+
+##======================= GPIO INIT =======================##
+
+gp.setmode(gp.BOARD)
+gp.setup(PIN_RECVPHONE, gp.IN)
+gp.setup(PIN_DOORCLOSE0, gp.IN)
+gp.setup(PIN_DOORCLOSE1, gp.IN)
+gp.setup(PIN_SERVO0, gp.OUT)
+gp.setup(PIN_SERVO1, gp.OUT)
+gp.setup(PIN_WEIGHT, gp.IN)
+
+servo0 = gp.PWM(PIN_SERVO0, 50)
+servo1 = gp.PWM(PIN_SERVO1, 50)
+servo0.start(0)
+servo1.start(0)
 
 
 ##==================== PUBLIC VARIABLES ====================##
@@ -44,17 +75,27 @@ admin_id        = 0
 
 def weight_isNow():     # Read weight sensor.
     '''read loadcell input'''
-    return 0
+    # temp
+    return gp.input(PIN_WEIGHT) * 120
 
 def btn_recvPhone():    # Check if receive phone button is pushed.
     '''read button input'''
-    return False
+    return gp.input(PIN_RECVPHONE)
 
 def camera_takePhoto(): # From camera, take photo and return the photo.
-    capture = cv2.VideoCapture(0)
-    ret, frame = capture.read()
-    return frame
+    with picamera.PiCamera() as camera:
+        camera.start_preview()
+        camera.capture('capture.jpg')
+        camera.stop_preview()
+    img = Image.open('capture.jpg')
+    return img
 
+def setServoPos(servo, degree):
+    if degree > 180:
+        degree = 180
+    
+    duty = SERVO_MIN_DUTY+(degree*(SERVO_MAX_DUTY-SERVO_MIN_DUTY)/180.0)
+    servo.ChangeDutyCycle(duty)
 
 door_openSpeed = 0.01
 def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
@@ -66,17 +107,20 @@ def make_doorLock():    # Check if door is closed, and lock. If door is not clos
             # Check Weight
             angle = (90-i)
             '''write angle'''
+            setServoPos(servo0, angle)
             time.sleep(door_openSpeed)
         else:
             # If Sth Strange
             angle = 90
             '''write angle'''
+            setServoPos(servo0, angle)
             print('    Sth Strange!')
             print('Failed to Lock Door.\n')
             return False
     
     # Lock Locker
     '''Lock Locker'''
+    setServoPos(servo1, 90)
     
     print('Successfully Locked Door.\n')
     return True
@@ -86,11 +130,13 @@ def make_doorUnlock():  # Unlock Door
 
     # Unlock Locker
     '''Unlock Locker'''
+    setServoPos(servo1, 0)
 
     # Open Door
     for i in range(90):
         angle = i
         '''write angle'''
+        setServoPos(servo0, angle)
         time.sleep(door_openSpeed)
     
     print('Successfully Opened Door.\n')
@@ -106,7 +152,7 @@ def server_connect():
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
         resp = requests.get(SERVER_URL)
-        if resp.status_code != 200:
+        if resp.status_code != 201:
             print("    Server doesn't respond... (", nowtry, "/", SERVER_MAXTRY, ")")
             if nowtry == SERVER_MAXTRY:
                 print("Failed to Connect Server. Operating as a Offline Mode.")
@@ -152,9 +198,10 @@ def time_isForUse():
 
 def qr_decrypt(photo, key_vector):  # Decrypt photo
     new_img = copy.deepcopy(photo)
-    GaussianBlur = ImageFilter.GaussianBlur(1)
-    new_img = new_img.filter(GaussianBlur)
-    new_img = new_img.resize((150,150))
+    new_img = new_img.resize((512,288))
+
+    # Blur
+    # new_img = cv2.blur(new_img, (5,5))
 
     # Generate o.n.basis with key vector
     e1 = np.array([1,0,0])
@@ -182,6 +229,7 @@ def qr_decrypt(photo, key_vector):  # Decrypt photo
             pixel = pixel.astype(int)
             new_img.putpixel((i,j), (pixel[0], pixel[0], pixel[0]))
     new_img = PIL.ImageOps.invert(new_img)
+    new_img.save('decrypted.jpg')
 
     return new_img
 
@@ -246,7 +294,7 @@ def phone_autoCut(photo):
     # Make photo into numpy.ndarray
     if type(photo) == str:
         new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
-    elif type(photo) == Image.Image:
+    elif type(photo) == Image.Image or type(photo) == PIL.JpegImagePlugin.JpegImageFile:
         new_img = np.array(photo)
     elif type(photo) == np.ndarray:
         new_img = copy.deepcopy(photo)
@@ -258,7 +306,9 @@ def phone_autoCut(photo):
         new_height = int(height * new_width/width)
         new_img = cv2.resize(new_img, dsize=(new_width, new_height), interpolation=cv2.INTER_AREA)
         #new_img = cv2.rotate(new_img, cv2.ROTATE_90_CLOCKWISE)
-        
+    except:   
+        pass
+    if True:
         # Grayscale
         gray_img = cv2.cvtColor(new_img, cv2.COLOR_BGR2GRAY)
         # cv2.imshow('gray', gray_img)
@@ -273,7 +323,7 @@ def phone_autoCut(photo):
         # cv2.destroyAllWindows()
 
         # Find Contours
-        cont, hier = cv2.findContours(gray_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        img, cont, hier = cv2.findContours(gray_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         max_area = 0
         max_index = 0
         for i in range(len(cont)):
@@ -293,7 +343,7 @@ def phone_autoCut(photo):
         mask = cv2.drawContours(mask, [max_cont], -1, (255,255,255), 5)
         kernel = np.ones((30,30), np.uint8)
         dilated = cv2.dilate(mask, kernel, iterations=1)
-        cont, hier = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        img, cont, hier = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         max_area = 0
         max_index = 0
         for i in range(len(cont)):
@@ -338,11 +388,12 @@ def phone_autoCut(photo):
 
         return img_phone
 
-    except Exception as e:
-        print('Failed to Autocut...')
-        print(e)
-        return new_img
-# temp_img = phone_autoCut('img/IMG_0301.jpg')
+    #except Exception as e:
+    #    print('Failed to Autocut...')
+    #    print(e)
+    #    return new_img
+temp_img = phone_autoCut('img/IMG_0301.jpg')
+cv2.imwrite('autocut.jpg', temp_img)
 
 def img_to_base64(img):
     return base64.b64encode(img)
@@ -365,7 +416,7 @@ def server_returnLog(id, returnTime, weight):
     result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
     return result
 
-print(server_returnLog(1, time.time(), 100))
+# print(server_returnLog(1, time.time(), 100))
 
 
 
@@ -396,11 +447,28 @@ else:
 
 print('Start Main Loop.')
 while True:
+    print('weight: ', weight_isNow(), '/', weight_saved)
 
     if phone_isFull:    # ANTI-THEFT
         # Check If GetPhone Button is Pushed
-        if btn_recvPhone() and time_isForUse():
-            make_doorUnlock()
+        if btn_recvPhone():
+            print('Receive Phone Button Pressed!')
+            if time_isForUse():
+                make_doorUnlock()
+                # Change Status
+                phone_isFull = False
+                weight_saved = 0
+                admin_id = 0
+                print('    Changed Status.')
+                # Save Status
+                temp_save = {'phone_isFull': phone_isFull, 'weight': weight_saved, 'adminId': admin_id}
+                with open('save.pickle', 'wb') as fw:
+                    pickle.dump(temp_save, fw)
+                print('    Status Saved.')
+                print('    Please Take Out the Phone.')
+                time.sleep(10)
+            else :
+                print('But Not Time for Use!')
         
 
     else:
@@ -420,18 +488,20 @@ while True:
                 continue
             else:
                 print(' -> sth entered in the tray.')
-                weight_saved = weight_isNow()
             
             #   Wait for next TOTP, take photo
             print('    Reading QR Code...')
             return_time = time.time()
             time.sleep(TOTP_DELAY)
-            qr = qr_read(qr_decrypt(camera_takePhoto(), 'time-based onbasis'))
+            qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
 
             if qr != '':
                 # If QR Code Detected, request server phone return
-                qr = json.loads(qr)
-                success = server_returnValid(qr['deviceId'], qr['totp'], return_time)
+                try:
+                    qr = json.loads(qr)
+                    success = server_returnValid(qr['deviceId'], qr['totp'], return_time)
+                except:
+                    success = False
                 if success:
                     # If good return case
                     print('    Valid QR Code!')
