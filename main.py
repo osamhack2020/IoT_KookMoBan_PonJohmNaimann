@@ -300,6 +300,7 @@ def qr_read(photo): # Detect QR Code from photo, then return serial.
     decoded = pyzbar.decode(photo)
     if len(decoded) > 0:
         result = decoded[0].data.decode('utf-8')
+    print('    QR Read: ', result)
     return result
 
 #test_img = Image.open('test.png')
@@ -461,6 +462,7 @@ def img_to_base64(img):
 # print(img_to_base64(temp_img))
 
 def server_returnValid(id, TOTP, time):
+    print('Request Validity Check: deviceId ', id, ', TOTP: ', TOTP, ', time: ', time)
     now = np.floor(time * 1000)
     params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
     response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
