@@ -555,11 +555,13 @@ while True:
                     pickle.dump(temp_save, fw)
                 print('    Status Saved.')
                 print('    Please Take Out the Phone.')
+                make_ledlight(True)
                 while True:
                     if weight_isNow() < 5:
                         break
                     time.sleep(1)
                 time.sleep(3)
+                make_ledlight(False)
             else :
                 print('But Not Time for Use!')
                 make_ledstatus('YELLOW')
