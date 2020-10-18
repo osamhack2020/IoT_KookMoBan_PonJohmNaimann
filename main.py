@@ -412,6 +412,7 @@ def img_to_base64(img):
 # print(img_to_base64(temp_img))
 
 def server_returnValid(id, TOTP, time):
+    print('Request Validity Check: deviceId ', id, ', TOTP: ', TOTP, ', time: ', time)
     now = np.floor(time * 1000)
     params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
     response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
@@ -525,7 +526,8 @@ while True:
             print('    Reading QR Code...')
             return_time = time.time()
             time.sleep(TOTP_DELAY)
-            qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
+            # qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
+            qr = qr_read(camera_takePhoto())
 
             if qr != '':
                 # If QR Code Detected, request server phone return
