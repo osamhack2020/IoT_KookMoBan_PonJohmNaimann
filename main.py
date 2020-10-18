@@ -250,6 +250,7 @@ def qr_read(photo): # Detect QR Code from photo, then return serial.
     decoded = pyzbar.decode(photo)
     if len(decoded) > 0:
         result = decoded[0].data.decode('utf-8')
+    print('    QR Read: ', result)
     return result
 
 #test_img = Image.open('test.png')
