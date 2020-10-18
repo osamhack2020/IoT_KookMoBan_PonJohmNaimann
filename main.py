@@ -34,6 +34,10 @@ PIN_DOORCLOSE1	= 40
 PIN_SERVO0 		= 11
 PIN_SERVO1		= 13
 PIN_LEDLIGHT	= 16
+PIN_BLED		= 37
+PIN_GLED		= 35
+PIN_YLED		= 33
+PIN_RLED		= 31
 
 SERVO_MIN_DUTY	= 3
 SERVO_MAX_DUTY	= 12
@@ -50,6 +54,12 @@ gp.setup(PIN_DOORCLOSE0, gp.IN)
 gp.setup(PIN_DOORCLOSE1, gp.IN)
 gp.setup(PIN_SERVO0, gp.OUT)
 gp.setup(PIN_SERVO1, gp.OUT)
+gp.setup(PIN_LEDLIGHT, gp.OUT)
+gp.setup(PIN_BLED, gp.OUT)
+gp.setup(PIN_GLED, gp.OUT)
+gp.setup(PIN_YLED, gp.OUT)
+gp.setup(PIN_RLED, gp.OUT)
+
 gp.setup(PIN_WEIGHT, gp.IN)
 
 servo0 = gp.PWM(PIN_SERVO0, 50)
@@ -72,6 +82,8 @@ weight_saved    = 0
 weight_err      = 0.05
 
 admin_id        = 0
+
+led_status		= 'OFF'		# 'BLUE', 'GREEN', 'YELLOW', 'RED'
 
 
 ##============== SENSOR & ACTUATOR IO FUNCTION ==============##
@@ -98,6 +110,7 @@ def btn_recvPhone():    # Check if receive phone button is pushed.
 def camera_takePhoto(): # From camera, take photo and return the photo.
     with picamera.PiCamera() as camera:
         camera.start_preview()
+        time.sleep(5)
         camera.capture('capture.jpg')
         camera.stop_preview()
     img = Image.open('capture.jpg')
@@ -116,13 +129,13 @@ def make_doorLock():    # Check if door is closed, and lock. If door is not clos
 
     # Close Door
     for i in range(90):
-        angle = (90-i)
+        angle = (180-i)
         '''write angle'''
         setServoPos(servo0, angle)
         time.sleep(door_openSpeed)
     if weight_isNow() <= (3+weight_saved*weight_err):
         # If Sth Strange
-        angle = 90
+        angle = 180
         '''write angle'''
         setServoPos(servo0, angle)
         print('Sth Strange!')
@@ -145,13 +158,50 @@ def make_doorUnlock():  # Unlock Door
 
     # Open Door
     for i in range(90):
-        angle = i
+        angle = 90+i
         '''write angle'''
         setServoPos(servo0, angle)
         time.sleep(door_openSpeed)
     
     print('Successfully Opened Door.\n')
     return True
+
+def make_ledlight(tf):
+    if tf == True:
+        gp.output(PIN_LEDLIGHT, gp.HIGH)
+    else:
+        gp.output(PIN_LEDLIGHT, gp.LOW)
+
+def make_ledstatus(s):
+    '''
+    if s == 'OFF':
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+    elif s == 'BLUE':
+        gp.output(PIN_BLED, gp.HIGH)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+    elif s == 'GREEN':
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.HIGH)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+    elif s == 'YELLOW':
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.HIGH)
+        gp.output(PIN_BLED, gp.LOW)
+    elif s == 'RED':
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_BLED, gp.HIGH)
+    '''
+    pass
+
 
 
 
@@ -209,7 +259,7 @@ def time_isForUse():
 
 def qr_decrypt(photo, key_vector):  # Decrypt photo
     new_img = copy.deepcopy(photo)
-    new_img = new_img.resize((512,288))
+    # new_img = new_img.resize((512,288))
 
     # Blur
     # new_img = cv2.blur(new_img, (5,5))
@@ -399,20 +449,12 @@ def phone_autoCut(photo):
 
         return img_phone
 
-<<<<<<< Updated upstream
     #except Exception as e:
     #    print('Failed to Autocut...')
     #    print(e)
     #    return new_img
 temp_img = phone_autoCut('img/IMG_0301.jpg')
 cv2.imwrite('autocut.jpg', temp_img)
-=======
-    except Exception as e:
-        print('Failed to Autocut...')
-        print(e)
-        return new_img
-temp_img = phone_autoCut('img/IMG_0301.jpg')
->>>>>>> Stashed changes
 
 def img_to_base64(img):
     return base64.b64encode(img)
@@ -446,6 +488,21 @@ def server_returnLog(id, returnTime, weight):
 ##========================= RUN PROGRAM =========================##
 
 
+# Opening Ceremony
+make_ledstatus('OFF')
+time.sleep(0.5)
+make_ledstatus('BLUE')
+time.sleep(0.5)
+make_ledstatus('GREEN')
+time.sleep(0.5)
+make_ledstatus('YELLOW')
+time.sleep(0.5)
+make_ledstatus('RED')
+time.sleep(0.5)
+make_ledstatus('OFF')
+time.sleep(0.5)
+
+
 # Check Server Connection
 
 server_isConnected = server_connect()
@@ -466,13 +523,16 @@ else:
     phone_isFull = False
 
 
-# Main Loop
+# Door Init
+if not phone_isFull:
+    make_doorUnlock()
 
 print('Start Main Loop.')
 while True:
     print('weight: ', weight_isNow(), '/', weight_saved)
 
     if phone_isFull:    # ANTI-THEFT
+        make_ledstatus('BLUE')
         # Check If GetPhone Button is Pushed
         if btn_recvPhone():
             print('Receive Phone Button Pressed!')
@@ -492,26 +552,37 @@ while True:
                 time.sleep(10)
             else :
                 print('But Not Time for Use!')
+                make_ledstatus('YELLOW')
+                time.sleep(3)
+                make_ledstatus('BLUE')
         
 
     else:
+        make_ledstatus('OFF')
         # Check If Weight Sensor Has Changed
         if abs(weight_saved - weight_isNow()) <= (3+weight_saved * weight_err):
             # Nothing Happend
             pass
         else:
             # Something Entered
+            make_ledstatus('GREEN')
             print('Weight Sensor Activated!')
             weight_temp = weight_isNow()
             print('weight: ', weight_temp)
+
+            # 불좀 켜줄래?
+            make_ledlight(True)
             
             #   Then Filter Noise Case
             time.sleep(0.5)
             if abs(weight_saved - weight_isNow()) <= (3+weight_saved * weight_err):
                 print(' -> was an noise case.')
+                make_ledstatus('OFF')
+                make_ledlight(False)
                 continue
             else:
                 print(' -> sth entered in the tray.')
+            make_ledstatus('GREEN')
             
             #   Lock Door
             door_maxtry = 3
@@ -525,6 +596,7 @@ while True:
                     print('    Door Cannot be Locked!')
             if not door_locked:
                 print('Return Canceled: Door Problem!')
+                make_ledstatus('YELLOW')
                 make_doorUnlock()
                 continue
             
@@ -532,7 +604,8 @@ while True:
             print('    Reading QR Code...')
             return_time = time.time()
             time.sleep(TOTP_DELAY)
-            qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
+            # qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
+            qr = qr_read(camera_takePhoto())
 
             if qr != '':
                 # If QR Code Detected, request server phone return
@@ -569,6 +642,7 @@ while True:
 
                     # Notice User Successful Phone Return
                     print('Return Finished Successfully.')
+                    make_ledlight(False)
 
                     time.sleep(3)
 
@@ -577,6 +651,8 @@ while True:
                     
                     # Alert User
                     print('Return Canceled: Invalid QR Code.')
+                    make_ledstatus('YELLOW')
+                    make_ledlight(False)
                     
                     # Open Door
                     make_doorUnlock()
@@ -589,6 +665,8 @@ while True:
             else:
                 # No QR Code
                 print('Return Failed: QR Reading Failed.')
+                make_ledstatus('YELLOW')
+                make_ledlight(False)
                 
                 # Open Door
                 make_doorUnlock()
