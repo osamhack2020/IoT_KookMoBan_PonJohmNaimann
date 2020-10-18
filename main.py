@@ -101,6 +101,7 @@ def weight_isNow():     # Read weight sensor.
     weight = 1023 - int(buffer)
     if weight < 0:
         weight = 0
+    weight /= 4
     return weight
 
 def btn_recvPhone():    # Check if receive phone button is pushed.
