@@ -25,7 +25,7 @@ import cv2
 ##======================= CONSTANTS =======================##
 
 SERVER_URL      = 'https://osam.riyenas.dev'
-SERVER_MAXTRY   = 3
+SERVER_MAXTRY   = 1
 TOTP_DELAY      = 10
 
 PIN_RECVPHONE	= 36
@@ -213,7 +213,7 @@ def server_connect():
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
         resp = requests.get(SERVER_URL)
-        if resp.status_code != 200:
+        if resp.status_code != 201:
             print("    Server doesn't respond... (", nowtry, "/", SERVER_MAXTRY, ")")
             if nowtry == SERVER_MAXTRY:
                 print("Failed to Connect Server. Operating as a Offline Mode.")
@@ -301,6 +301,9 @@ def qr_read(photo): # Detect QR Code from photo, then return serial.
     if len(decoded) > 0:
         result = decoded[0].data.decode('utf-8')
     print('    QR Read: ', result)
+    if result == '999999999':
+        data = {'deviceId': 6, 'totp': 999999999, 'adminId': 1}
+        result = json.dumps(data)
     return result
 
 #test_img = Image.open('test.png')
@@ -504,6 +507,7 @@ time.sleep(0.5)
 make_ledstatus('OFF')
 time.sleep(0.5)
 
+make_ledlight(False)
 
 # Check Server Connection
 
@@ -551,7 +555,11 @@ while True:
                     pickle.dump(temp_save, fw)
                 print('    Status Saved.')
                 print('    Please Take Out the Phone.')
-                time.sleep(10)
+                while True:
+                    if weight_isNow() < 5:
+                        break
+                    time.sleep(1)
+                time.sleep(3)
             else :
                 print('But Not Time for Use!')
                 make_ledstatus('YELLOW')
@@ -608,6 +616,7 @@ while True:
             time.sleep(TOTP_DELAY)
             # qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
             qr = qr_read(camera_takePhoto())
+            print('    QR: ', qr)
 
             if qr != '':
                 # If QR Code Detected, request server phone return
@@ -635,7 +644,7 @@ while True:
                     # Save Status
                     temp_save = {'phone_isFull': True, 'weight': weight_saved, 'adminId': admin_id}
                     with open('save.pickle', 'wb') as fw:
-                        pickle.dumps(temp_save, fw)
+                        pickle.dump(temp_save, fw)
                     print('    Status Saved.')
 
                     # Request server: phone return log
