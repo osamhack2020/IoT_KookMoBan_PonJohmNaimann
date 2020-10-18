@@ -235,5 +235,5 @@ def qr_encrypt(img, enc):
 
     return new_img
 
-qr = qr_gen("{'adminId': 1, 'deviceId': 1, 'TOTP': 999999999}")
+qr = qr_gen(999999999)
 qr_encrypt(qr, "RED_BSHUFFLE")
