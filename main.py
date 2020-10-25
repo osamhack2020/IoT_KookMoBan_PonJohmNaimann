@@ -42,9 +42,6 @@ PIN_RLED		= 31
 SERVO_MIN_DUTY	= 3
 SERVO_MAX_DUTY	= 12
 
-#TEMPORARY
-PIN_WEIGHT		= 37
-
 
 ##======================= GPIO INIT =======================##
 
@@ -59,8 +56,6 @@ gp.setup(PIN_BLED, gp.OUT)
 gp.setup(PIN_GLED, gp.OUT)
 gp.setup(PIN_YLED, gp.OUT)
 gp.setup(PIN_RLED, gp.OUT)
-
-gp.setup(PIN_WEIGHT, gp.IN)
 
 servo0 = gp.PWM(PIN_SERVO0, 50)
 servo1 = gp.PWM(PIN_SERVO1, 50)
@@ -124,7 +119,7 @@ def setServoPos(servo, degree):
     duty = SERVO_MIN_DUTY+(degree*(SERVO_MAX_DUTY-SERVO_MIN_DUTY)/180.0)
     servo.ChangeDutyCycle(duty)
 
-door_openSpeed = 0.01
+door_openSpeed = 0.03
 def make_doorLock():    # Check if door is closed, and lock. If door is not closed so failed to lock, return false.
     print('Lock Door...')
 
@@ -174,35 +169,31 @@ def make_ledlight(tf):
         gp.output(PIN_LEDLIGHT, gp.LOW)
 
 def make_ledstatus(s):
-    '''
     if s == 'OFF':
         gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_GLED, gp.LOW)
+        gp.output(PIN_YLED, gp.LOW)
+        gp.output(PIN_RLED, gp.LOW)
     elif s == 'BLUE':
         gp.output(PIN_BLED, gp.HIGH)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_GLED, gp.LOW)
+        gp.output(PIN_YLED, gp.LOW)
+        gp.output(PIN_RLED, gp.LOW)
     elif s == 'GREEN':
         gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.HIGH)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_GLED, gp.HIGH)
+        gp.output(PIN_YLED, gp.LOW)
+        gp.output(PIN_RLED, gp.LOW)
     elif s == 'YELLOW':
         gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.HIGH)
-        gp.output(PIN_BLED, gp.LOW)
+        gp.output(PIN_GLED, gp.LOW)
+        gp.output(PIN_YLED, gp.HIGH)
+        gp.output(PIN_RLED, gp.LOW)
     elif s == 'RED':
         gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.LOW)
-        gp.output(PIN_BLED, gp.HIGH)
-    '''
-    pass
-
+        gp.output(PIN_GLED, gp.LOW)
+        gp.output(PIN_YLED, gp.LOW)
+        gp.output(PIN_RLED, gp.HIGH)
 
 
 
@@ -214,7 +205,7 @@ def server_connect():
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
         resp = requests.get(SERVER_URL)
-        if resp.status_code != 201:
+        if resp.status_code != 200:
             print("    Server doesn't respond... (", nowtry, "/", SERVER_MAXTRY, ")")
             if nowtry == SERVER_MAXTRY:
                 print("Failed to Connect Server. Operating as a Offline Mode.")
@@ -471,8 +462,6 @@ def server_returnValid(id, TOTP, time):
     params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
     response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
 
-    if TOTP == 999999999:
-        return 'true'
     return response
 
 print(server_returnValid(1, 999999999, time.time()))
@@ -529,10 +518,6 @@ else:
     print('Tray Check: Nothing Inside.\n')
     phone_isFull = False
 
-
-# Door Init
-if not phone_isFull:
-    make_doorUnlock()
 
 print('Start Main Loop.')
 while True:
@@ -616,7 +601,7 @@ while True:
             #   Wait for next TOTP, take photo
             print('    Reading QR Code...')
             return_time = time.time()
-            time.sleep(TOTP_DELAY)
+            # time.sleep(TOTP_DELAY)
             # qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
             qr = qr_read(camera_takePhoto())
             print('    QR: ', qr)
@@ -625,12 +610,14 @@ while True:
                 # If QR Code Detected, request server phone return
                 try:
                     qr = json.loads(qr)
-                    success = server_returnValid(qr['deviceId'], qr['totp'], return_time)
+                    print(qr)
+                    success = server_returnValid(qr['deviceID'], qr['TOTP'], return_time)
                 except:
                     success = False
                 if success:
                     # If good return case
                     print('    Valid QR Code!')
+                    make_ledstatus('BLUE')
 
                     # Measure weight properly
                     mean_weight = weight_isNow()
@@ -656,7 +643,6 @@ while True:
 
                     # Notice User Successful Phone Return
                     print('Return Finished Successfully.')
-                    make_ledlight(False)
 
                     time.sleep(3)
 
