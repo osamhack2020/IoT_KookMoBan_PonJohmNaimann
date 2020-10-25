@@ -205,7 +205,7 @@ def server_connect():
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
         resp = requests.get(SERVER_URL)
-        if resp.status_code != 200:
+        if resp.status_code != 201:
             print("    Server doesn't respond... (", nowtry, "/", SERVER_MAXTRY, ")")
             if nowtry == SERVER_MAXTRY:
                 print("Failed to Connect Server. Operating as a Offline Mode.")
@@ -464,7 +464,7 @@ def server_returnValid(id, TOTP, time):
 
     return response
 
-print(server_returnValid(1, 999999999, time.time()))
+# print(server_returnValid(1, 999999999, time.time()))
 
 def server_returnLog(id, returnTime, weight):
     cv2.imwrite('cam.jpeg', phone_autoCut(camera_takePhoto()))
@@ -473,7 +473,7 @@ def server_returnLog(id, returnTime, weight):
     params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
     # params = {'photo': photo_str}
     
-    result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
+    result = requests.post(url=SERVER_URL+'/api/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
     return result
 
 # print(server_returnLog(1, time.time(), 100))
@@ -601,7 +601,7 @@ while True:
             #   Wait for next TOTP, take photo
             print('    Reading QR Code...')
             return_time = time.time()
-            # time.sleep(TOTP_DELAY)
+            time.sleep(TOTP_DELAY)
             # qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
             qr = qr_read(camera_takePhoto())
             print('    QR: ', qr)
@@ -624,12 +624,12 @@ while True:
                     for i in range(10):
                         mean_weight = mean_weight * i/(1+i) + weight_isNow() /(1+i)
                         time.sleep(0.05)
-                    print('    Weight: %f gram', mean_weight)
+                    print('    Weight: ', mean_weight)
 
                     # Change Status
                     phone_isFull = True
                     weight_saved = mean_weight
-                    admin_id = qr['adminId']
+                    admin_id = qr['adminID']
                     
                     # Save Status
                     temp_save = {'phone_isFull': True, 'weight': weight_saved, 'adminId': admin_id}
@@ -638,7 +638,7 @@ while True:
                     print('    Status Saved.')
 
                     # Request server: phone return log
-                    server_returnLog(qr['deviceId'], return_time, weight_isNow())
+                    server_returnLog(qr['deviceID'], return_time, weight_isNow())
                     print('    Sent Server Return Log.')
 
                     # Notice User Successful Phone Return
