@@ -108,9 +108,10 @@ def camera_takePhoto(): # From camera, take photo and return the photo.
         camera.start_preview()
         time.sleep(5)
         camera.capture('capture.jpg')
+        taketime = time.time()
         camera.stop_preview()
     img = Image.open('capture.jpg')
-    return img
+    return img, taketime
 
 def setServoPos(servo, degree):
     if degree > 180:
@@ -205,7 +206,7 @@ def server_connect():
     nowtry = 1
     while nowtry <= SERVER_MAXTRY:
         resp = requests.get(SERVER_URL)
-        if resp.status_code != 200:
+        if resp.status_code != 201:
             print("    Server doesn't respond... (", nowtry, "/", SERVER_MAXTRY, ")")
             if nowtry == SERVER_MAXTRY:
                 print("Failed to Connect Server. Operating as a Offline Mode.")
@@ -349,6 +350,7 @@ def transform(img_input, points, size):
 
 def phone_autoCut(photo):
     # Make photo into numpy.ndarray
+    print(type(photo))
     if type(photo) == str:
         new_img = cv2.imread(photo, cv2.IMREAD_COLOR)
     elif type(photo) == Image.Image or type(photo) == PIL.JpegImagePlugin.JpegImageFile:
@@ -362,7 +364,7 @@ def phone_autoCut(photo):
         new_width = 540
         new_height = int(height * new_width/width)
         new_img = cv2.resize(new_img, dsize=(new_width, new_height), interpolation=cv2.INTER_AREA)
-        #new_img = cv2.rotate(new_img, cv2.ROTATE_90_CLOCKWISE)
+        new_img = cv2.rotate(new_img, cv2.ROTATE_90_CLOCKWISE)
     except:   
         pass
     if True:
@@ -456,24 +458,28 @@ def img_to_base64(img):
     return base64.b64encode(img)
 # print(img_to_base64(temp_img))
 
-def server_returnValid(id, TOTP, time):
-    print('Request Validity Check: deviceId ', id, ', TOTP: ', TOTP, ', time: ', time)
+def server_returnValid(id_, TOTP, time):
     now = np.floor(time * 1000)
-    params = {'timeInMillis': now, 'deviceId': id, 'expectedTOTP': TOTP}
-    response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'})
-
+    print('Request Validity Check: deviceId ', id_, ', TOTP: ', TOTP, ', time: ', now)
+    params = {'deviceId': id_, 'expectedTOTP': TOTP, 'timeInMillis': now}
+    response = requests.post(url=SERVER_URL+'/api/totp/valid', data=json.dumps(params), headers={'Content-Type': 'application/json'}).text
+    
+    if response == 'false':
+        response = False
+    else:
+        response = True
     return response
 
-print(server_returnValid(1, 999999999, time.time()))
+# print(server_returnValid(1, 999999999, time.time()))
 
 def server_returnLog(id, returnTime, weight):
-    cv2.imwrite('cam.jpeg', phone_autoCut(camera_takePhoto()))
+    cv2.imwrite('cam.jpeg', phone_autoCut(camera_takePhoto()[0]))
     with open('cam.jpeg', 'rb') as img:
         photo_str = 'data:image/jpeg;base64,'+str(base64.b64encode(img.read()).decode('utf-8'))
     params = {'deviceId': id, 'returnTime': np.floor(returnTime*1000), 'weight': weight, 'photo': photo_str}
     # params = {'photo': photo_str}
     
-    result = requests.post(url=SERVER_URL+'/api/soldier/device/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
+    result = requests.post(url=SERVER_URL+'/api/log/create', data=json.dumps(params), headers={'Content-Type': 'application/json'})
     return result
 
 # print(server_returnLog(1, time.time(), 100))
@@ -600,11 +606,12 @@ while True:
             
             #   Wait for next TOTP, take photo
             print('    Reading QR Code...')
-            return_time = time.time()
-            # time.sleep(TOTP_DELAY)
+            time.sleep(TOTP_DELAY)
             # qr = qr_read(qr_decrypt(camera_takePhoto(), [1,0,0]))
-            qr = qr_read(camera_takePhoto())
+            qr, return_time = camera_takePhoto()
+            qr = qr_read(qr)
             print('    QR: ', qr)
+            print('    RT: ', return_time)
 
             if qr != '':
                 # If QR Code Detected, request server phone return
@@ -612,7 +619,9 @@ while True:
                     qr = json.loads(qr)
                     print(qr)
                     success = server_returnValid(qr['deviceID'], qr['TOTP'], return_time)
+                    print(success)
                 except:
+                    print('except')
                     success = False
                 if success:
                     # If good return case
@@ -624,12 +633,12 @@ while True:
                     for i in range(10):
                         mean_weight = mean_weight * i/(1+i) + weight_isNow() /(1+i)
                         time.sleep(0.05)
-                    print('    Weight: %f gram', mean_weight)
+                    print('    Weight: ', mean_weight)
 
                     # Change Status
                     phone_isFull = True
                     weight_saved = mean_weight
-                    admin_id = qr['adminId']
+                    admin_id = qr['adminID']
                     
                     # Save Status
                     temp_save = {'phone_isFull': True, 'weight': weight_saved, 'adminId': admin_id}
@@ -638,7 +647,7 @@ while True:
                     print('    Status Saved.')
 
                     # Request server: phone return log
-                    server_returnLog(qr['deviceId'], return_time, weight_isNow())
+                    server_returnLog(qr['deviceID'], return_time, weight_isNow())
                     print('    Sent Server Return Log.')
 
                     # Notice User Successful Phone Return
