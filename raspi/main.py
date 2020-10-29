@@ -42,6 +42,8 @@ PIN_RLED		= 31
 SERVO_MIN_DUTY	= 3
 SERVO_MAX_DUTY	= 12
 
+SERIAL_PORT     = '/dev/ttyUSB0'
+
 
 ##======================= GPIO INIT =======================##
 
@@ -62,7 +64,7 @@ servo1 = gp.PWM(PIN_SERVO1, 50)
 servo0.start(0)
 servo1.start(0)
 
-ser = serial.Serial('/dev/ttyUSB0', 9600)
+ser = serial.Serial(SERIAL_PORT, 9600)
 
 
 ##==================== PUBLIC VARIABLES ====================##
