@@ -1,4 +1,4 @@
-# 국방모바일반납 (Pon Johm Naimann-IoT파트)
+# 국방모바일반납 (Pon Johm Naimann-IoT 파트)
 
 ## Introduction
 <p align="center">
