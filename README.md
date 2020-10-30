@@ -36,7 +36,5 @@
 
 
 # Copyright
-<p align="center">
-<img src="http://www.cckorea.org/images/ccl/lic_by_sa_g.gif"/>
-</p>
-Pon Johm Naimann에 의해 창작된 본 저장소의 모든 내용들은 크리에이티브 커먼즈 [저작자표시-동일조건변경허락 4.0 국제 (CC BY-SA 4.0)]에 따라 이용할 수 있습니다.
+Copyrightⓒ2020 Pon Johm Naimann All rights reserved.
+
