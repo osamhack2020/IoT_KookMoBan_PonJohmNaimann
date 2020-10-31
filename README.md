@@ -1,5 +1,9 @@
 # 국방모바일반납 (Pon Johm Naimann-IoT 파트)
 
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/osamhack2020/IoT_KookMoBan_PonJohmNaimann)
+![Code for Arduino](https://img.shields.io/badge/Code_for_Arduino-GPL_v3.0-green?&style=flat)
+![Code for Arduino](https://img.shields.io/badge/Code_for_Raspberry-BSD_3--Clause-green?&style=flat)
+
 ## Introduction
 <p align="center">
 <img alt="GitHub contributors" src="https://user-images.githubusercontent.com/32615702/97505907-21b5ad80-19bd-11eb-9d03-4959b24b4375.png" width="50%">

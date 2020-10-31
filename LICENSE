@@ -1,6 +1,6 @@
 ## Code for Arduino
 
-GPLv3.0
+GPL v3
 
     Copyright (C) 2020  Pon Johm Naimann
 
