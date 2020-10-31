@@ -1,4 +1,4 @@
-* Code for Arduino
+## Code for Arduino
 
 GPLv3.0
 
@@ -18,7 +18,7 @@ GPLv3.0
 
 
 
-* Code for Raspberry
+## Code for Raspberry
 
 BSD 3-Clause License
 
