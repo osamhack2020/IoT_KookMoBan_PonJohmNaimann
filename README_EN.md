@@ -1,4 +1,4 @@
-[![English](https://img.shields.io/badge/-English-blue.svg?style=flat)](https://github.com/osamhack2020/APP_KookMoBanUser_PonJohmNaimann/blob/master/README_EN.md) [![한국어](https://img.shields.io/badge/-한국어-red.svg?style=flat)](https://github.com/osamhack2020/APP_KookMoBanUser_PonJohmNaimann/blob/master/README.md)
+[![English](https://img.shields.io/badge/-English-blue.svg?style=flat)](https://github.com/osamhack2020/IoT_KookMoBan_PonJohmNaimann/blob/master/README_EN.md) [![한국어](https://img.shields.io/badge/-한국어-red.svg?style=flat)](https://github.com/osamhack2020/IoT_KookMoBan_PonJohmNaimann/blob/master/README.md)
 
 # KookMoBan (Pon Johm Naimann-IoT part)
 
