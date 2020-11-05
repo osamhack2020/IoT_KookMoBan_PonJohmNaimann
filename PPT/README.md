@@ -10,5 +10,5 @@
 * [기기반납영상](https://youtu.be/j-UtmO9tqu4)
 * [TOTP시연영상](https://youtu.be/JxOJ6xShL1s)
 
-> 시연영상이 전부 100MB을 넘겨서 직접 첨부가 불가능합니다ㅠㅠ 링크를 참조해주세요!
+> 시연영상이 전부 100MB을 넘겨서 직접 첨부가 불가능합니다ㅠㅠ 링크를 참조해주세요!  
 > Every performance video exceeds 100MB, so Github rejects to upload these files :( Plz check links above.
